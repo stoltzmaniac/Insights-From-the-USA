@@ -1,0 +1,116 @@
+---
+title: "US Immigration Enforcement"
+author: "Scott Stoltzman"
+date: "8/7/2017"
+output: html_document
+---
+
+```{r setup, echo=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+#knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Try your first query
+
+List all tables in the dataset:
+```{r load libraries and data}
+library(data.world)
+library(tidyverse)
+library(gridExtra)
+library(scales)
+library(GGally)
+library(lubridate)
+library(ggthemes)
+
+# Datasets are referenced by their URL or path
+dataset_key <- "https://data.world/stoltzmaniac/insights-from-the-usa"
+
+qry = data.world::qry_sql(sprintf("SELECT * FROM `%s`", "immigrationenforcement"))
+data = data.world::query(qry, dataset = dataset_key)
+
+qry = data.world::qry_sql(sprintf("SELECT * FROM `%s`", "presidents"))
+presidents = data.world::query(qry, dataset = dataset_key)
+```
+
+```{r show data}
+data %>% arrange(year)
+```
+
+```{r show presidents}
+presidents %>% arrange(presidency)
+presidents$left_office = as.Date(presidents$left_office,"%d/%m/%Y")
+presidents
+```
+
+
+```{r gaps in years}
+# Check for any missing year (rows only)
+yearsCovered = max(data$year) - min(data$year) + 1
+uniqueYears = length(unique(data$year))
+
+print(paste0('Years Covered = ',yearsCovered))
+print(paste0('Unique Yeras in Data = ', uniqueYears))
+
+```
+
+```{r wrangle data}
+# Removing William Henry Harrison due to only serving 31 days in office... not his fault!
+
+df.presidents = presidents %>%
+  filter(president != 'William Henry Harrison') %>%
+  mutate(year_took_office = as.integer(year(took_office)),
+         year_left_office = as.integer(year(left_office))) %>%
+  select(president,year_took_office, year_left_office, party)
+
+#modify Calvin Coolidge so the data lines up at the beginning
+df.presidents$year_took_office[df.presidents$president == 'Calvin Coolidge'] = 1925
+
+df = data %>%
+  left_join(df.presidents, by = c('year' = 'year_took_office')) %>% 
+  arrange(year) %>% 
+  fill(everything())
+df$year = as.integer(df$year)
+df$party = factor(df$party)
+df %>% arrange(year)
+
+```
+
+
+```{r time series plots, fig.height=10, fig.align='center'}
+p1 = ggplot(df, aes(x=year,y=apprehended)) +
+  geom_bar(stat='identity',aes(fill=party)) + 
+  geom_line(size=1) + 
+  scale_y_continuous(labels = comma) + 
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  scale_x_continuous(breaks = pretty(data$year, n = 10)) + 
+  scale_fill_manual(values = c('#0052A5','#E0162B')) + 
+  ggtitle('Apprehended') + 
+  theme_fivethirtyeight()
+
+p2 = ggplot(df, aes(x=year,y=removals)) + 
+  geom_bar(stat='identity',aes(fill=party)) + 
+  geom_line(size=1) + 
+  scale_y_continuous(labels = comma) + 
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  scale_x_continuous(breaks = pretty(data$year, n = 10)) + 
+  scale_fill_manual(values = c('#0052A5','#E0162B')) + 
+  ggtitle('Removals') + 
+  theme_fivethirtyeight()
+
+p3 = ggplot(df, aes(x=year,y=returns)) + 
+  geom_bar(stat='identity',aes(fill=party)) + 
+  geom_line(size=1) + 
+  scale_y_continuous(labels = comma) + 
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  scale_x_continuous(breaks = pretty(data$year, n = 10)) + 
+  scale_fill_manual(values = c('#0052A5','#E0162B')) + 
+  ggtitle('Returns') + 
+  theme_fivethirtyeight()
+
+grid.arrange(p1, p2, p3, ncol = 1)
+
+```
+
+
+
+
