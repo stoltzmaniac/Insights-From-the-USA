@@ -1,0 +1,103 @@
+<h3>Trend of US Immigration Enforcement</h3>
+
+<p>In the coming month I&#39;ll be digging into the immigration enforcement data posted on <a href="https://data.world/stoltzmaniac/insights-from-the-usa">data.world</a>. I encourage anyone to take this data and either add to the project or to do something on their own. I will be bringing in external data sources to merge as well (which I did for this first plot).</p>
+
+<p>Anyway, if you&#39;re only here for a &ldquo;high-level nugget&rdquo; of information, the basic thing you can see is:  </p>
+
+<h4>Things have changed since 1925!</h4>
+
+<p>Here&#39;s a look at the immigration enforcement data with the party of the POTUS shown in red and blue:  </p>
+
+<hr/>
+
+<p><img src="https://www.stoltzmaniac.com/wp-content/uploads/2017/08/immigration-enforcement-plots-1.png" title="plot of chunk immigration enforcement plots" alt="plot of chunk immigration enforcement plots" style="display: block; margin: auto;" /></p>
+
+<hr/>
+
+<h4>What&#39;s going on here?</h4>
+
+<p>I am not a huge history buff, so when I noticed the big spike back in the early 1950&#39;s I went to look it up. It&#39;s certainly something worth reading about. It stemmed from the <a href="https://en.wikipedia.org/wiki/Bracero_program">Bracero Program</a> followed by <a href="https://en.wikipedia.org/wiki/Operation_Wetback%22">Operation Wetback</a>:  </p>
+
+<blockquote>
+<p>Operation Wetback was the culmination of more than a decade of intensifying immigration enforcement. Immigration enforcement actions (removals and returns) rose rapidly from a low of 12 thousand in 1942, to 727 thousand in 1952, the final year of the Truman Administration. Enforcement actions continued to rise under Eisenhower, until reaching a peak of 1.1 million in 1954, the year of Operation Wetback. Enforcement actions then fell by more than 90 percent in 1955, and 1956, and in 1957 were 69 thousand, the lowest number since 1944. The number of enforcement actions rose again in the 1960s and 1970s, but did not exceed the 1954 peak of Operation Wetback until 1986.  </p>
+</blockquote>
+
+<p>I apologize for what may be considered offensive or derogatory language but that&#39;s what the operation was called.  </p>
+
+<h4>Why is the political party of the POTUS on there?</h4>
+
+<p>The short answer - because it makes for a more interesting graph. In addition, immigration is a hot topic and presidents around the world have been discussing it for quite some time now (understatement). I certainly realize that the role of the POTUS has changed over the years. Obviously, there are <strong><em>A LOT</em></strong> of people who are involved in immigration enforcement policy, decision-making and execution. Simply using the party of the POTUS isn&#39;t reflective of the overall picture. Over the last decade, the power for the POTUS to affect immigration decisions has grown drastically. It will be interesting to see what this chart looks like five years from now.  </p>
+
+<p>The code can be found on my <a href="https://github.com/stoltzmaniac/Insights-From-the-USA">GitHub Repo</a>  </p>
+
+<p>The project and data can be found on my <a href="https://data.world/stoltzmaniac/insights-from-the-usa">Data.World Project</a>  </p>
+
+<pre><code class="r">library(data.world)
+library(tidyverse)
+library(gridExtra)
+library(scales)
+library(GGally)
+library(lubridate)
+library(ggthemes)
+
+# Datasets are referenced by their URL or path
+dataset_key &lt;- &quot;https://data.world/stoltzmaniac/insights-from-the-usa&quot;
+
+qry = data.world::qry_sql(sprintf(&quot;SELECT * FROM `%s`&quot;, &quot;immigrationenforcement&quot;))
+data = data.world::query(qry, dataset = dataset_key)
+
+qry = data.world::qry_sql(sprintf(&quot;SELECT * FROM `%s`&quot;, &quot;presidents&quot;))
+presidents = data.world::query(qry, dataset = dataset_key)
+presidents$left_office = as.Date(presidents$left_office,&quot;%d/%m/%Y&quot;)
+
+# Removing William Henry Harrison due to only serving 31 days in office... not his fault!
+df.presidents = presidents %&gt;%
+  filter(president != &#39;William Henry Harrison&#39;) %&gt;%
+  mutate(year_took_office = as.integer(year(took_office)),
+         year_left_office = as.integer(year(left_office))) %&gt;%
+  select(president,year_took_office, year_left_office, party)
+
+#modify Calvin Coolidge so the data lines up at the beginning
+df.presidents$year_took_office[df.presidents$president == &#39;Calvin Coolidge&#39;] = 1925
+
+df = data %&gt;%
+  left_join(df.presidents, by = c(&#39;year&#39; = &#39;year_took_office&#39;)) %&gt;% 
+  arrange(year) %&gt;% 
+  fill(everything())
+df$year = as.integer(df$year)
+df$party = factor(df$party)
+df %&gt;% arrange(year)
+
+p1 = ggplot(df, aes(x=year,y=apprehended)) +
+  geom_bar(stat=&#39;identity&#39;,aes(fill=party)) + 
+  geom_line(size=1) + 
+  scale_y_continuous(labels = comma) + 
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  scale_x_continuous(breaks = pretty(data$year, n = 10)) + 
+  scale_fill_manual(values = c(&#39;#0052A5&#39;,&#39;#E0162B&#39;)) + 
+  ggtitle(&#39;Apprehended&#39;) + 
+  theme_fivethirtyeight()
+
+p2 = ggplot(df, aes(x=year,y=removals)) + 
+  geom_bar(stat=&#39;identity&#39;,aes(fill=party)) + 
+  geom_line(size=1) + 
+  scale_y_continuous(labels = comma) + 
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  scale_x_continuous(breaks = pretty(data$year, n = 10)) + 
+  scale_fill_manual(values = c(&#39;#0052A5&#39;,&#39;#E0162B&#39;)) + 
+  ggtitle(&#39;Removals&#39;) + 
+  theme_fivethirtyeight()
+
+p3 = ggplot(df, aes(x=year,y=returns)) + 
+  geom_bar(stat=&#39;identity&#39;,aes(fill=party)) + 
+  geom_line(size=1) + 
+  scale_y_continuous(labels = comma) + 
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  scale_x_continuous(breaks = pretty(data$year, n = 10)) + 
+  scale_fill_manual(values = c(&#39;#0052A5&#39;,&#39;#E0162B&#39;)) + 
+  ggtitle(&#39;Returns&#39;) + 
+  theme_fivethirtyeight()
+
+grid.arrange(p1, p2, p3, ncol = 1)
+</code></pre>
+

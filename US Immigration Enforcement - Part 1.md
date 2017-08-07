@@ -1,8 +1,5 @@
 
-```{r setup, echo=FALSE}
-knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
-#knitr::opts_chunk$set(echo = TRUE)
-```
+
 
 ### Trend of US Immigration Enforcement
 
@@ -16,76 +13,10 @@ Here's a look at the immigration enforcement data with the party of the POTUS sh
 
 ----
 
-```{r execute script}
-library(data.world)
-library(tidyverse)
-library(gridExtra)
-library(scales)
-library(GGally)
-library(lubridate)
-library(ggthemes)
-
-# Datasets are referenced by their URL or path
-dataset_key <- "https://data.world/stoltzmaniac/insights-from-the-usa"
-
-qry = data.world::qry_sql(sprintf("SELECT * FROM `%s`", "immigrationenforcement"))
-data = data.world::query(qry, dataset = dataset_key)
-
-qry = data.world::qry_sql(sprintf("SELECT * FROM `%s`", "presidents"))
-presidents = data.world::query(qry, dataset = dataset_key)
-presidents$left_office = as.Date(presidents$left_office,"%d/%m/%Y")
-
-df.presidents = presidents %>%
-  mutate(year_took_office = as.integer(year(took_office)),
-         year_left_office = as.integer(year(left_office))) %>%
-  select(president,year_took_office, year_left_office, party)
-
-#modify Calvin Coolidge so the data lines up at the beginning
-df.presidents$year_took_office[df.presidents$president == 'Calvin Coolidge'] = 1925
-
-df = data %>%
-  left_join(df.presidents, by = c('year' = 'year_took_office')) %>% 
-  arrange(year) %>% 
-  fill(everything())
-df$year = as.integer(df$year)
-df$party = factor(df$party)
-```
 
 
-```{r immigration enforcement plots, fig.height=10, fig.align='center'}
-p1 = ggplot(df, aes(x=year,y=apprehended)) +
-  geom_bar(stat='identity',aes(fill=party)) + 
-  geom_line(size=1) + 
-  scale_y_continuous(labels = comma) + 
-  theme(plot.title = element_text(hjust = 0.5)) + 
-  scale_x_continuous(breaks = pretty(data$year, n = 10)) + 
-  scale_fill_manual(values = c('#0052A5','#E0162B')) + 
-  ggtitle('Apprehended') + 
-  theme_fivethirtyeight()
 
-p2 = ggplot(df, aes(x=year,y=removals)) + 
-  geom_bar(stat='identity',aes(fill=party)) + 
-  geom_line(size=1) + 
-  scale_y_continuous(labels = comma) + 
-  theme(plot.title = element_text(hjust = 0.5)) + 
-  scale_x_continuous(breaks = pretty(data$year, n = 10)) + 
-  scale_fill_manual(values = c('#0052A5','#E0162B')) + 
-  ggtitle('Removals') + 
-  theme_fivethirtyeight()
-
-p3 = ggplot(df, aes(x=year,y=returns)) + 
-  geom_bar(stat='identity',aes(fill=party)) + 
-  geom_line(size=1) + 
-  scale_y_continuous(labels = comma) + 
-  theme(plot.title = element_text(hjust = 0.5)) + 
-  scale_x_continuous(breaks = pretty(data$year, n = 10)) + 
-  scale_fill_manual(values = c('#0052A5','#E0162B')) + 
-  ggtitle('Returns') + 
-  theme_fivethirtyeight()
-
-grid.arrange(p1, p2, p3, ncol = 1)
-
-```
+<img src="https://www.stoltzmaniac.com/wp-content/uploads/2017/08/immigration-enforcement-plots-1.png" title="plot of chunk immigration enforcement plots" alt="plot of chunk immigration enforcement plots" style="display: block; margin: auto;" />
   
 ----  
   
@@ -117,7 +48,8 @@ The code can be found on my [GitHub Repo](https://github.com/stoltzmaniac/Insigh
 The project and data can be found on my [Data.World Project](https://data.world/stoltzmaniac/insights-from-the-usa)  
 
 
-```{r code example, echo=TRUE, eval=FALSE}
+
+```r
 library(data.world)
 library(tidyverse)
 library(gridExtra)
@@ -185,6 +117,5 @@ p3 = ggplot(df, aes(x=year,y=returns)) +
   theme_fivethirtyeight()
 
 grid.arrange(p1, p2, p3, ncol = 1)
-
 ```
 
