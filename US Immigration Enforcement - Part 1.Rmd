@@ -35,13 +35,14 @@ qry = data.world::qry_sql(sprintf("SELECT * FROM `%s`", "presidents"))
 presidents = data.world::query(qry, dataset = dataset_key)
 presidents$left_office = as.Date(presidents$left_office,"%d/%m/%Y")
 
+# Presidents Data
 df.presidents = presidents %>%
   mutate(year_took_office = as.integer(year(took_office)),
          year_left_office = as.integer(year(left_office))) %>%
   select(president,year_took_office, year_left_office, party)
-
 #modify Calvin Coolidge so the data lines up at the beginning
 df.presidents$year_took_office[df.presidents$president == 'Calvin Coolidge'] = 1925
+
 
 df = data %>%
   left_join(df.presidents, by = c('year' = 'year_took_office')) %>% 

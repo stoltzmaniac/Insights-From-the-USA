@@ -1,0 +1,202 @@
+
+```{r setup, echo=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+#knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Trend of US Immigration Enforcement
+
+In the coming month I'll be digging into the immigration enforcement data posted on [data.world](https://data.world/stoltzmaniac/insights-from-the-usa). I encourage anyone to take this data and either add to the project or to do something on their own. I will be bringing in external data sources to merge as well (which I did for this first plot).
+
+Anyway, if you're only here for a "high-level nugget" of information, the basic thing you can see is:  
+
+#### Things have changed since 1925!  
+
+Here's a look at the immigration enforcement data with the party of the POTUS shown in red and blue:  
+
+----
+
+```{r execute script}
+library(data.world)
+library(reshape2)
+library(tidyverse)
+library(gridExtra)
+library(scales)
+library(GGally)
+library(lubridate)
+library(ggthemes)
+
+# Datasets are referenced by their URL or path
+dataset_key <- "https://data.world/stoltzmaniac/insights-from-the-usa"
+
+qry = data.world::qry_sql(sprintf("SELECT * FROM `%s`", "immigrationenforcement"))
+data = data.world::query(qry, dataset = dataset_key)
+
+qry = data.world::qry_sql(sprintf("SELECT * FROM `%s`", '02_2_fbi_hate_crime_statistics_comparison_2000_2015_all'))
+hate_crimes = data.world::query(qry, dataset = dataset_key)
+
+df = hate_crimes %>%
+  left_join(data, by = 'year') %>%
+  arrange(year)
+
+
+```
+
+```{r}
+df
+```
+
+
+
+```{r}
+df.clean = df
+df.clean[is.na(df.clean)] = 0
+df.clean = df.clean[,colSums(df.clean) >= 20]
+df.total_only = df.clean[, grepl("total|year|removals|returns|apprehended", names(df.clean))]
+df.no_total = df.clean[, !grepl("total", names(df.clean))]
+```
+
+```{r}
+cormat <- round(cor(df.total_only %>% select(-year)),2)
+melted_cormat <- melt(cormat)
+ggplot(data = melted_cormat, aes(x=Var1, y=Var2, fill=value)) + 
+  geom_tile() + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
+```
+
+
+```{r}
+cormat <- round(cor(df.no_total %>% select(-year)),2)
+melted_cormat <- melt(cormat)
+ggplot(data = melted_cormat, aes(x=Var1, y=Var2, fill=value)) + 
+  geom_tile() + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
+```
+
+
+```{r, fig.height=8}
+# Get lower triangle of the correlation matrix
+get_lower_tri<-function(cormat){
+  cormat[upper.tri(cormat)] <- NA
+  return(cormat)
+}
+
+# Get upper triangle of the correlation matrix
+get_upper_tri <- function(cormat){
+  cormat[lower.tri(cormat)]<- NA
+  return(cormat)
+}
+
+reorder_cormat <- function(cormat){
+# Use correlation between variables as distance
+dd <- as.dist((1-cormat)/2)
+hc <- hclust(dd)
+cormat <-cormat[hc$order, hc$order]
+}
+
+# Reorder the correlation matrix
+cormat <- round(cor(df.no_total %>% select(-year)),2)
+cormat <- reorder_cormat(cormat)
+upper_tri <- get_upper_tri(cormat)
+# Melt the correlation matrix
+melted_cormat <- melt(upper_tri, na.rm = TRUE)
+# Create a ggheatmap
+ggheatmap <- ggplot(melted_cormat, aes(Var2, Var1, fill = value))+
+ geom_tile(color = "white")+
+ scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+   midpoint = 0, limit = c(-1,1), space = "Lab", 
+    name="Pearson\nCorrelation") +
+  theme_minimal()+ # minimal theme
+ theme(axis.text.x = element_text(angle = 45, vjust = 1, 
+    size = 20, hjust = 1),
+    axis.text.y = element_text(size=20))+
+ coord_fixed()
+# Print the heatmap
+print(ggheatmap)
+
+
+```
+
+
+```{r}
+library(ggpmisc)
+formula = y ~ x
+p = ggplot(df)
+p1 = p + geom_line(aes(x=year,y=racialbias_total)) + theme_economist()
+p2 = p + geom_line(aes(x=year,y=apprehended)) + theme_economist()
+p3 = p + geom_point(aes(x=racialbias_total, y=apprehended)) + theme_economist() + 
+  geom_smooth(aes(x=racialbias_total, y=apprehended), method = lm, se=FALSE) + 
+  stat_poly_eq(aes(x=racialbias_total, y=apprehended,label = paste(..eq.label.., ..rr.label.., sep = "~~~")), 
+             label.x.npc = "right", label.y.npc = 0.15,
+             formula = formula, parse = TRUE, size = 3)
+grid.arrange(p1,p2,p3,ncol=1)
+```
+
+
+
+
+```{r}
+formula = y ~ x
+p = ggplot(df)
+p1 = p + geom_line(aes(x=year,y=anti_protestant)) + theme_economist()
+p2 = p + geom_line(aes(x=year,y=anti_islamic)) + theme_economist()
+p3 = p + geom_point(aes(x=anti_protestant, y=anti_islamic)) + theme_economist() + 
+  geom_smooth(aes(x=anti_protestant, y=anti_islamic), method = lm, se=FALSE) + 
+  stat_poly_eq(aes(x=anti_protestant, y=anti_islamic,label = paste(..eq.label.., ..rr.label.., sep = "~~~")), 
+             label.x.npc = "right", label.y.npc = 0.15,
+             formula = formula, parse = TRUE, size = 3)
+grid.arrange(p1,p2,p3,ncol=1)
+
+```
+
+
+
+```{r}
+pct.change <- function(x) {(x-lag(x))/lag(x)}
+# Change Rates
+df.changes = df %>% arrange(year)
+df.changes$year = as.character(df.changes$year)
+df.changes = df.changes %>%
+  mutate_if(is.numeric, pct.change) %>%
+  filter(year != '2000')
+df.changes$year = as.integer(df.changes$year)
+df.changes
+p = ggplot(df.changes)
+p1 = p + geom_line(aes(x=year,y=racialbias_total)) + theme_economist()
+p2 = p + geom_line(aes(x=year,y=apprehended)) + theme_economist()
+p3 = p + geom_point(aes(x=racialbias_total, y=apprehended)) + theme_economist() + 
+  geom_smooth(aes(x=racialbias_total, y=apprehended), method = lm, se=FALSE) + 
+  stat_poly_eq(aes(x=racialbias_total, y=apprehended,label = paste(..eq.label.., ..rr.label.., sep = "~~~")), 
+             label.x.npc = "right", label.y.npc = 0.80,
+             formula = formula, parse = TRUE, size = 3)
+grid.arrange(p1,p2,p3,ncol=1)
+```
+
+```{r}
+pct.change <- function(x) {(x-lag(x))/x}
+# Change Rates
+df.changes = df %>% arrange(year)
+df.changes$year = as.character(df.changes$year)
+df.changes = df.changes %>%
+  mutate_if(is.numeric, pct.change) %>%
+  filter(year != '2000')
+df.changes$year = as.integer(df.changes$year)
+df.changes
+
+df.changes$year = as.character(df.changes$year)
+df.change.total = df.changes %>%
+  mutate_if(is.numeric, cumsum)
+df.change.total$year = as.integer(df.change.total$year)
+df.change.total
+
+p = ggplot(df.change.total)
+p1 = p + geom_line(aes(x=year,y=racialbias_total)) + theme_economist()
+p2 = p + geom_line(aes(x=year,y=apprehended)) + theme_economist()
+p3 = p + geom_point(aes(x=racialbias_total, y=apprehended)) + theme_economist() + 
+  geom_smooth(aes(x=racialbias_total, y=apprehended), method = lm, se=FALSE) + 
+  stat_poly_eq(aes(x=racialbias_total, y=apprehended,label = paste(..eq.label.., ..rr.label.., sep = "~~~")), 
+             label.x.npc = "right", label.y.npc = 0.15,
+             formula = formula, parse = TRUE, size = 3)
+grid.arrange(p1,p2,p3,ncol=1)
+```
+
