@@ -49,6 +49,58 @@ df
 
 
 ```{r}
+pct.change <- function(x) {(x-lag(x))/lag(x)}
+df.changes = data %>% arrange(year)
+df.changes$year = as.character(df.changes$year)
+
+df.changes = df.changes %>%
+  mutate_if(is.numeric, pct.change) %>%
+  na.omit() %>% 
+  gather(Enforcement,`Annual % Change`,apprehended:returns) %>%
+  arrange(year)
+
+df.changes$year = as.integer(df.changes$year)
+#df.changes$decade = (df.changes$year %/% 10) * 10
+df.changes$Enforcement = factor(df.changes$Enforcement)
+
+p = ggplot(df.changes, aes(x=year,y=`Annual % Change`,col=Enforcement)) + 
+  geom_abline(slope=0,intercept=0,size=1.5,col='black') + 
+  geom_line(size=1) + 
+  scale_y_continuous(breaks = scales::pretty_breaks(15),labels = percent) +
+  theme_fivethirtyeight() + 
+  scale_colour_tableau() + 
+  ggtitle("Annual % Change in Incidents")
+p
+```
+
+```{r}
+df.changes = data %>% arrange(year)
+df.changes$year = as.character(df.changes$year)
+
+df.changes = df.changes %>%
+  mutate_if(is.numeric, pct.change) %>%
+  na.omit() %>%
+  mutate_if(is.numeric,cumsum) %>%
+  gather(Enforcement,`Annual % Change`,apprehended:returns)
+
+df.changes$year = as.integer(df.changes$year)
+#df.changes$decade = (df.changes$year %/% 10) * 10
+df.changes$Enforcement = factor(df.changes$Enforcement)
+
+p = ggplot(df.changes, aes(x=year,y=`Annual % Change`,col=Enforcement)) + 
+  geom_abline(slope=0,intercept=0,size=1.5,col='black') + 
+  geom_line(size=1) + 
+  scale_y_continuous(breaks = scales::pretty_breaks(15), labels = percent) +
+  theme_fivethirtyeight() + 
+  scale_colour_tableau() + 
+  ggtitle("Cumulative % Change in Incidents")
+p
+
+```
+
+
+
+```{r}
 df.clean = df
 df.clean[is.na(df.clean)] = 0
 df.clean = df.clean[,colSums(df.clean) >= 20]
