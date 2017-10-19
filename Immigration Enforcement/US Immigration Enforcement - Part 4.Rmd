@@ -56,11 +56,26 @@ df = us_gdp %>%
 ```
 
 
-```{r}
+```{r, fig.height=6}
 p = ggplot(df,aes(x=year)) + theme_economist()
-p1 = p + geom_line(aes(y=gdp)) + ggtitle("GDP in Billions ($)") + scale_y_continuous(labels=dollar)
-p2 = p + geom_line(aes(y=population)) + ggtitle("US Population") + scale_y_continuous(labels=comma)
-p3 = p + geom_line(aes(y=gdp.per.capita)) + ggtitle("GDP Per Capita") + scale_y_continuous(labels=dollar)
+
+p1 = p + geom_line(aes(y=gdp),size=1.5) + 
+  ggtitle("US GDP in Billions ($)") + 
+  scale_y_continuous(labels=dollar) +
+  scale_x_continuous(breaks = seq(min(df$year)-1,max(df$year),by=10)) + 
+  ylab('')
+
+p2 = p + geom_line(aes(y=population),size=1.5) + 
+  ggtitle("US Population") + 
+  scale_y_continuous(labels=comma) + 
+  scale_x_continuous(breaks = seq(min(df$year)-1,max(df$year),by=10)) + 
+  ylab('')
+p3 = p + geom_line(aes(y=gdp.per.capita),size=1.5) + 
+  ggtitle("US GDP Per Capita") +
+  scale_y_continuous(labels=dollar) + 
+  scale_x_continuous(breaks = seq(min(df$year)-1,max(df$year),by=10)) + 
+  ylab('')
+
 grid.arrange(p1,p2,p3,ncol=1)
 ```
 

@@ -1,0 +1,35 @@
+
+```{r setup, echo=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+#knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Trend of US Immigration Enforcement
+
+In the coming month I'll be digging into the immigration enforcement data posted on [data.world](https://data.world/stoltzmaniac/insights-from-the-usa). I encourage anyone to take this data and either add to the project or to do something on their own. I will be bringing in external data sources to merge as well (which I did for this first plot).
+
+Anyway, if you're only here for a "high-level nugget" of information, the basic thing you can see is:  
+
+#### Things have changed since 1925!  
+
+Here's a look at the immigration enforcement data with the party of the POTUS shown in red and blue:  
+
+----
+
+```{r execute script}
+library(tidyverse)
+library(leaflet)
+library(rgdal)
+## Data saved on data.world https://data.world/stoltzmaniac/insights-from-the-usa/
+#wall = geojsonio::geojson_read('../Mexico Border Wall/border-fence.geojson')
+#wall = readOGR('../Mexico Border Wall/border-fence.geojson')
+```
+
+
+```{r,fig.width=3}
+#leaflet() %>% 
+#  addTiles() %>% 
+#  setView(-106, 31, zoom = 5) %>%
+#  addGeoJSON(wall)
+```
+

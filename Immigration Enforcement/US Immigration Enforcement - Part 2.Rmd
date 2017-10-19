@@ -33,7 +33,7 @@ library(ggthemes)
 dataset_key <- "https://data.world/stoltzmaniac/insights-from-the-usa"
 
 qry = data.world::qry_sql(sprintf("SELECT * FROM `%s`", "immigrationenforcement"))
-data = data.world::query(qry, dataset = dataset_key)
+immigration = data.world::query(qry, dataset = dataset_key)
 
 qry = data.world::qry_sql(sprintf("SELECT * FROM `%s`", '02_2_fbi_hate_crime_statistics_comparison_2000_2015_all'))
 hate_crimes = data.world::query(qry, dataset = dataset_key)
@@ -44,6 +44,22 @@ us_population = data.world::query(qry, dataset = dataset_key)
 qry = data.world::qry_sql(sprintf("SELECT * FROM `%s`", 'gdp'))
 us_gdp = data.world::query(qry, dataset = dataset_key)
 
+#qry = data.world::qry_sql(sprintf("SELECT * FROM `%s`", 'border_fence'))
+#wall = data.world::query(qry, dataset = dataset_key)
+
+wall = read
+
+qry = data.world::qry_sql(sprintf("SELECT * FROM `%s`", "presidents"))
+presidents = data.world::query(qry, dataset = dataset_key)
+presidents$left_office = as.Date(presidents$left_office,"%d/%m/%Y")
+
+# Presidents Data
+df.presidents = presidents %>%
+  mutate(year_took_office = as.integer(year(took_office)),
+         year_left_office = as.integer(year(left_office))) %>%
+  select(president,year_took_office, year_left_office, party)
+#modify Calvin Coolidge so the data lines up at the beginning
+df.presidents$year_took_office[df.presidents$president == 'Calvin Coolidge'] = 1925
 
 df = us_gdp %>%
   mutate(year = year(date)) %>%
@@ -51,24 +67,44 @@ df = us_gdp %>%
   mutate(maxGDP = max(gdp)) %>%
   summarise(gdp = mean(maxGDP)) %>%
   left_join(us_population, by='year') %>%
-  mutate(gdp.per.capita = round(1e9*gdp / population,0))
+  mutate(gdp.per.capita = round(1e9*gdp / population,0)) %>%
+  left_join(df.presidents, by = c('year' = 'year_took_office')) %>% 
+  arrange(year) %>% 
+  fill(everything()) %>%
+  na.omit()
+df$year = as.integer(df$year)
+df$party = factor(df$party)
 
-
-df.population.enforcement = data %>%
-  left_join(us_population, by = 'year') %>% 
-  filter(year >= 1927) %>%
-  rename(us_population = population) %>%
-  arrange(year)
-
-df = hate_crimes %>%
-  left_join(data, by = 'year') %>% 
-  arrange(year)
+pct.change <- function(x) {(x-lag(x))/lag(x)}
+df = df %>% mutate(YoY.GDP.Growth.Rate = pct.change(gdp))
 
 ```
 
 
 ```{r}
+p1 = ggplot(df,aes(x=year,y=gdp)) + 
+  geom_bar(stat='identity',aes(fill=party)) + 
+  geom_line(size=1) + 
+  scale_y_continuous(labels = comma) + 
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  scale_x_continuous(breaks = pretty(data$year, n = 10)) + 
+  scale_fill_manual(values = c('#0052A5','#E0162B')) + 
+  ggtitle('GDP') + 
+  theme_fivethirtyeight()
 
+p2 = ggplot(df,aes(x=year,y=YoY.GDP.Growth.Rate)) + 
+  geom_bar(stat='identity',aes(fill=party)) + 
+  geom_line(size=1) + 
+  scale_y_continuous(labels = percent) + 
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  scale_x_continuous(breaks = pretty(data$year, n = 10)) + 
+  scale_fill_manual(values = c('#0052A5','#E0162B')) + 
+  ggtitle('Annual % GDP Change') + 
+  theme_fivethirtyeight()
+
+p3 = 
+
+grid.arrange(p1,p2,ncol=1)
 ```
 
 
